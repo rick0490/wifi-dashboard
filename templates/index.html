@@ -583,9 +583,175 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: linear-gradient(145deg, #2a2a2a 0%, #1e1e1e 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 280px;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+            pointer-events: auto;
+        }
+
+        .toast.hiding {
+            animation: slideOut 0.3s ease-in forwards;
+        }
+
+        .toast-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .toast-message {
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1.2rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .toast-close:hover {
+            color: #fff;
+        }
+
+        .toast.success {
+            border-left: 4px solid #00ff88;
+        }
+        .toast.success .toast-icon { color: #00ff88; }
+        .toast.success .toast-title { color: #00ff88; }
+
+        .toast.error {
+            border-left: 4px solid #ff4444;
+        }
+        .toast.error .toast-icon { color: #ff4444; }
+        .toast.error .toast-title { color: #ff4444; }
+
+        .toast.warning {
+            border-left: 4px solid #ffaa00;
+        }
+        .toast.warning .toast-icon { color: #ffaa00; }
+        .toast.warning .toast-title { color: #ffaa00; }
+
+        .toast.info {
+            border-left: 4px solid #00d4ff;
+        }
+        .toast.info .toast-icon { color: #00d4ff; }
+        .toast.info .toast-title { color: #00d4ff; }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        /* Connection error banner */
+        .connection-error-banner {
+            display: none;
+            background: linear-gradient(145deg, #3a2020 0%, #2a1515 100%);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-error-banner.visible {
+            display: block;
+        }
+
+        .connection-error-banner .error-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .connection-error-banner .error-text {
+            color: #ff6666;
+            font-weight: 500;
+        }
+
+        .connection-error-banner .error-subtext {
+            color: #999;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: auto;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Toast notification container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Connection error banner -->
+    <div class="connection-error-banner" id="connection-error-banner">
+        <div class="error-icon">&#9888;</div>
+        <div class="error-text">Connection to dashboard server lost</div>
+        <div class="error-subtext">Attempting to reconnect...</div>
+    </div>
+
     <div class="header">
         <h1>Speedify Dashboard</h1>
         <p class="subtitle">Advanced Network Bonding Monitor</p>
@@ -729,6 +895,61 @@
         // Track previous health score for trend calculation
         let previousHealthScore = null;
 
+        // Track connection state for error banner
+        let consecutiveErrors = 0;
+        const MAX_ERRORS_BEFORE_BANNER = 2;
+
+        // Debounce flag for mode changes
+        let modeChangeInProgress = false;
+
+        // Toast notification system
+        function showToast(type, title, message, duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '&#10004;',
+                error: '&#10006;',
+                warning: '&#9888;',
+                info: '&#8505;'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto-remove after duration
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Show/hide connection error banner
+        function setConnectionError(hasError) {
+            const banner = document.getElementById('connection-error-banner');
+            if (hasError) {
+                consecutiveErrors++;
+                if (consecutiveErrors >= MAX_ERRORS_BEFORE_BANNER) {
+                    banner.classList.add('visible');
+                }
+            } else {
+                if (consecutiveErrors >= MAX_ERRORS_BEFORE_BANNER) {
+                    banner.classList.remove('visible');
+                    showToast('success', 'Connection Restored', 'Dashboard is receiving data again');
+                }
+                consecutiveErrors = 0;
+            }
+        }
+
         function updateHealthWidget(score, status) {
             const healthScore = document.getElementById('health-score');
             const healthStatus = document.getElementById('health-status');
@@ -843,6 +1064,9 @@
             fetch("/api/status")
                 .then(response => response.json())
                 .then(data => {
+                    // Clear connection error state on successful fetch
+                    setConnectionError(false);
+
                     // Update overall status
                     const overallDot = document.getElementById("overall-dot");
                     const overallState = document.getElementById("overall-state");
@@ -977,13 +1201,8 @@
                 })
                 .catch(error => {
                     console.error("Error fetching status:", error);
-                    // Show error state in UI
-                    document.querySelectorAll('.loading').forEach(el => {
-                        el.style.display = 'none';
-                        if (el.parentElement) {
-                            el.parentElement.innerHTML = '<span style="color: #ff4444;">Error</span>';
-                        }
-                    });
+                    // Track connection errors and show banner if persistent
+                    setConnectionError(true);
                 });
         }
 
@@ -1014,11 +1233,18 @@
 
         function changeMode(mode) {
             const button = document.getElementById(`mode-${mode}`);
-            
+
             // Don't change if already active or disabled
             if (button.classList.contains('active') || button.classList.contains('disabled')) {
                 return;
             }
+
+            // Debounce: prevent rapid clicks during mode change
+            if (modeChangeInProgress) {
+                showToast('warning', 'Please Wait', 'Mode change already in progress');
+                return;
+            }
+            modeChangeInProgress = true;
 
             // Set loading state
             button.classList.add('loading');
@@ -1037,24 +1263,26 @@
                     // Update UI immediately to show the change
                     updateModeButtons(mode);
                     document.getElementById("bonding-mode").textContent = `Mode: ${mode.toUpperCase()}`;
-                    
+                    showToast('success', 'Mode Changed', `Switched to ${mode} mode`);
+
                     // Refresh data after a short delay to get updated status
                     setTimeout(() => {
                         updateStatus();
                     }, 1000);
                 } else {
                     console.error('Mode change failed:', data.error);
-                    alert('Failed to change mode: ' + data.error);
+                    showToast('error', 'Mode Change Failed', data.error);
                 }
             })
             .catch(error => {
                 console.error('Error changing mode:', error);
-                alert('Error changing mode: ' + error.message);
+                showToast('error', 'Connection Error', 'Could not reach the server');
             })
             .finally(() => {
                 // Remove loading state and restore text
                 button.classList.remove('loading');
                 button.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+                modeChangeInProgress = false;
             });
         }
 
@@ -1068,12 +1296,12 @@
         // Initial load
         updateServerInfo();
         updateStatus();
-        
-        // Auto-refresh every 3 seconds for real-time monitoring
-        setInterval(() => {
-            updateServerInfo();
-            updateStatus();
-        }, 3000);
+
+        // Status updates every 3 seconds for real-time monitoring
+        setInterval(updateStatus, 3000);
+
+        // Server info updates every 30 seconds (rarely changes)
+        setInterval(updateServerInfo, 30000);
     </script>
 </body>
 </html>

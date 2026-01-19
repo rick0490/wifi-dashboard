@@ -16,7 +16,7 @@ This machine is a **portable network bonding solution** designed for:
 
 ---
 
-## E2E Test Results (Latest)
+## E2E Test Results (Latest - 2025-01-19)
 
 | Test | Status |
 |------|--------|
@@ -25,6 +25,7 @@ This machine is a **portable network bonding solution** designed for:
 | Server API (`GET /api/server`) | PASSED |
 | Mode change validation (`POST /api/change-mode`) | PASSED |
 | Frontend-Backend integration | PASSED |
+| Health Widget display | PASSED |
 
 **Current Metrics:**
 - Overall Status: CONNECTED (good)
@@ -32,6 +33,7 @@ This machine is a **portable network bonding solution** designed for:
 - Latency: 26.0 ms
 - Jitter: 2.5 ms
 - Uptime: 52+ days
+- Health Score: Calculated and displayed correctly
 
 ---
 
@@ -43,27 +45,62 @@ This machine is a **portable network bonding solution** designed for:
 - [x] Added 10-second timeout to all subprocess calls
 - [x] Aligned MOS thresholds between CLAUDE.md, backend (3.5), and frontend (3.5)
 
+### Features Implemented (v1.1.0)
+- [x] **Connection Health Widget** - Conic gradient ring visualization (0-100 score)
+  - Score-based color coding: Excellent (80+), Good (60-79), Fair (40-59), Poor (20-39), Critical (<20)
+  - Trend tracking with arrows (↑ Improving, → Stable, ↓ Degrading)
+  - Smooth CSS animations and transitions
+  - Backend: `calculate_health_score()` at lines 64-123
+  - Frontend: `updateHealthWidget()` at lines 953-1016
+
+### Code Quality Fixes (v1.2.0)
+- [x] **Backend improvements:**
+  - Replaced bare `except:` with `except json.JSONDecodeError:`
+  - Added Python `logging` module (replaced all print statements)
+  - Debug mode via `FLASK_DEBUG` environment variable
+  - Extracted CLI path to `SPEEDIFY_CLI_PATH` constant
+  - Added null check for `request.get_json()` in change_mode()
+
+- [x] **Frontend improvements:**
+  - Added toast notification system (success/error/warning/info)
+  - Added connection error banner for persistent failures
+  - Added debounce flag to prevent rapid mode button clicks
+  - Separated polling intervals (status: 3s, server: 30s)
+
 ---
 
 ## Phase 1: Bug Fixes & Code Quality (High Priority)
 
-### Backend (`app.py`)
+### Backend (`app.py`) - 420 lines total
 
-| Issue | Location | Description | Effort |
+| Issue | Location | Description | Status |
 |-------|----------|-------------|--------|
-| Bare except clauses | Lines 32, 44, 116 | Replace with specific `json.JSONDecodeError` exceptions | Low |
-| Print statements | Lines 49, 278, 285, 329 | Replace with Python `logging` module | Low |
-| Debug mode in production | Line 336 | Use environment variable for debug flag | Low |
-| Hardcoded CLI path | Multiple | Extract to config constant | Low |
-| No request validation | `change_mode()` | Add null check for `request.get_json()` | Low |
+| ~~Bare except clauses~~ | ~~Lines 32, 44, 178~~ | ~~Replace with specific `json.JSONDecodeError` exceptions~~ | ✅ Done |
+| ~~Print statements~~ | ~~Lines 49, 344, 351, 357, 395~~ | ~~Replace with Python `logging` module (5 instances)~~ | ✅ Done |
+| ~~Debug mode in production~~ | ~~Line 402~~ | ~~Use environment variable for debug flag~~ | ✅ Done |
+| ~~Hardcoded CLI path~~ | ~~Lines 10, 171, 327, 378~~ | ~~Extract to config constant (4 instances)~~ | ✅ Done |
+| ~~No request validation~~ | ~~Line 367-368 in `change_mode()`~~ | ~~Add null check for `request.get_json()`~~ | ✅ Done |
 
-### Frontend (`templates/index.html`)
+**All backend code quality issues resolved.** Changes include:
+- Added `logging` module with proper log levels (error, warning)
+- Added `SPEEDIFY_CLI_PATH` constant at line 16
+- Debug mode now controlled via `FLASK_DEBUG` environment variable
+- Request validation returns 400 for invalid JSON body
 
-| Issue | Location | Description | Effort |
+### Frontend (`templates/index.html`) - 1308 lines total
+
+| Issue | Location | Description | Status |
 |-------|----------|-------------|--------|
-| Alert() for errors | Lines 845, 850 | Replace with toast notification component | Medium |
-| No debounce on mode buttons | `changeMode()` | Add debounce to prevent rapid clicks during state transitions | Low |
-| Missing error boundary | `updateStatus()` | Wrap DOM updates in try-catch to prevent silent failures | Low |
+| ~~Alert() for errors~~ | ~~Lines 1047, 1052~~ | ~~Replace with toast notification component~~ | ✅ Done |
+| ~~No debounce on mode buttons~~ | ~~Lines 1015-1059 `changeMode()`~~ | ~~Add debounce to prevent rapid clicks~~ | ✅ Done |
+| ~~Polling inefficiency~~ | ~~Lines 1073-1076~~ | ~~Server info polled every 3s but rarely changes~~ | ✅ Done |
+| ~~Console.error only~~ | ~~Lines 978-987~~ | ~~Add user-visible error state on fetch failures~~ | ✅ Done |
+
+**All frontend code quality issues resolved.** Changes include:
+- Added toast notification system with success/error/warning/info types
+- Added connection error banner for persistent failures
+- Added `modeChangeInProgress` debounce flag
+- Separated polling intervals: status 3s, server info 30s
 
 ---
 
@@ -515,16 +552,43 @@ These features directly support the machine's core purpose and should be priorit
 ### Code Quality Issues
 
 ```
-app.py:
-├── Line 32, 44, 116: Bare except clauses
-├── Line 49, 278, 285, 329: Print statements instead of logging
-├── Line 336: Debug mode hardcoded
-└── Multiple: Hardcoded CLI path
+app.py (420 lines):
+├── ✅ Bare except clauses - FIXED (now uses json.JSONDecodeError)
+├── ✅ Print statements - FIXED (now uses logging module)
+├── ✅ Debug mode - FIXED (now uses FLASK_DEBUG env var)
+├── ✅ Hardcoded CLI path - FIXED (now uses SPEEDIFY_CLI_PATH constant)
+└── ✅ Missing null check - FIXED (returns 400 for invalid JSON)
 
-index.html:
-├── Line 845, 850: Browser alert() for errors
-├── Line 871-874: Both endpoints poll at same interval
-└── No TypeScript or type checking
+index.html (1308 lines):
+├── ✅ Browser alert() - FIXED (replaced with toast notifications)
+├── ✅ Polling inefficiency - FIXED (status 3s, server 30s)
+├── ✅ No debounce - FIXED (modeChangeInProgress flag)
+├── ✅ Console.error only - FIXED (connection error banner)
+└── No TypeScript or type checking (acceptable for project scope)
+```
+
+### Key Functions Reference
+
+```
+app.py (420 lines):
+├── run_speedify_cli()       Lines 20-62    CLI wrapper with JSON parsing
+├── calculate_health_score() Lines 64-123   Weighted 0-100 health algorithm
+├── calculate_status_level() Lines 126-160  Good/warn/bad status logic
+├── format_bytes()           Lines 162-171  Human-readable byte formatting
+├── get_status()             Lines 178-333  Main status API endpoint
+├── get_server()             Lines 336-373  Server info API endpoint
+└── change_mode()            Lines 377-420  Mode switching API endpoint
+
+index.html (1308 lines):
+├── showToast()             Lines 905-934  Toast notification display
+├── setConnectionError()    Lines 937-951  Connection error banner control
+├── updateHealthWidget()    Lines 953-1016 Health score ring visualization
+├── getStatusClass()        Lines 1018-1041 Metric threshold mapping
+├── updateServerInfo()      Lines 1043-1061 Server info fetch
+├── updateStatus()          Lines 1063-1207 Main status fetch and DOM update
+├── updateModeButtons()     Lines 1220-1232 Button state management
+├── changeMode()            Lines 1234-1287 Mode change with debounce
+└── formatSpeed()           Lines 1289-1294 Speed formatting
 ```
 
 ### Missing Features
@@ -533,6 +597,7 @@ index.html:
 - No error tracking/monitoring
 - No request rate limiting
 - No authentication option
+- No health check endpoint (`GET /api/health`)
 
 ---
 
@@ -609,7 +674,21 @@ index.html:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | Initial | Base dashboard with status, server, mode controls |
-| 1.0.1 | Current | Fixed MOS averaging, added subprocess timeouts, aligned thresholds |
+| 1.0.1 | - | Fixed MOS averaging, added subprocess timeouts, aligned thresholds |
+| 1.1.0 | 2025-01-19 | Added Connection Health Widget with score ring, trend tracking, color-coded status |
+
+### Current Codebase Stats (as of 2025-01-19)
+
+| Metric | Value |
+|--------|-------|
+| Backend (app.py) | 420 lines |
+| Frontend (index.html) | 1308 lines |
+| Setup Script | 163 lines |
+| API Endpoints | 4 (`/`, `/api/status`, `/api/server`, `/api/change-mode`) |
+| Backend Code Quality Issues | 0 (all resolved) |
+| Frontend Code Quality Issues | 0 (all resolved) |
+| E2E Tests | 6/6 passing |
+| Uptime | 52+ days |
 
 ---
 

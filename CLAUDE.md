@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## System Information
+
+| Component | Details |
+|-----------|---------|
+| Hostname | `wifi-pc` |
+| OS | Debian GNU/Linux 13 (trixie) |
+| Kernel | 6.12.63+deb13-amd64 |
+| Architecture | x86_64 |
+| CPU | Intel Core i5-9500T @ 2.20GHz (6 cores) |
+| RAM | 16 GB |
+| Storage | 110 GB NVMe (~103 GB free) |
+| Primary NIC | `eno1` - 192.168.1.31 (LAN) |
+| WiFi AP | `wlp2s0` - 192.168.145.1 (Speedify share) |
+
 ## Use Case
 
 This machine is a portable network bonding solution designed for **conventions, in-person events, and outdoor settings**. It provides reliable internet connectivity for:
@@ -52,7 +66,15 @@ nmcli con up speedify-share
 python3 app.py
 ```
 
-The server runs on `http://localhost:5000` with debug mode enabled.
+The server runs on `http://localhost:5000`. Debug mode is controlled via the `FLASK_DEBUG` environment variable:
+
+```bash
+# Production (default)
+python3 app.py
+
+# Development with debug mode
+FLASK_DEBUG=true python3 app.py
+```
 
 ## Architecture
 
@@ -76,6 +98,8 @@ The server runs on `http://localhost:5000` with debug mode enabled.
 
 ### Frontend
 Vanilla HTML/CSS/JavaScript with Material design-inspired dark theme. No build process or external JS frameworks.
+
+**Primary Display:** The dashboard is primarily viewed on **tablets and mobile devices** at event venues. Design decisions should prioritize touch-friendly interactions, readable text at arm's length, and responsive layouts that work well on smaller screens.
 
 ## Dependencies
 

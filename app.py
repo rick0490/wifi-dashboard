@@ -2,12 +2,24 @@ from flask import Flask, jsonify, render_template, request
 import subprocess
 import json
 import datetime
+import logging
+import os
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Configuration
+SPEEDIFY_CLI_PATH = '/usr/share/speedify/speedify_cli'
 
 app = Flask(__name__)
 
 def run_speedify_cli(cmd_args):
     try:
-        result = subprocess.run(['/usr/share/speedify/speedify_cli'] + cmd_args,
+        result = subprocess.run([SPEEDIFY_CLI_PATH] + cmd_args,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                               timeout=10)
         # Parse the complex JSON structure returned by Speedify CLI
@@ -29,7 +41,7 @@ def run_speedify_cli(cmd_args):
                             section_name = parsed[0]
                             section_data = parsed[1]
                             sections[section_name] = section_data
-                    except:
+                    except json.JSONDecodeError:
                         pass
                     current_json = ""
         
@@ -41,12 +53,12 @@ def run_speedify_cli(cmd_args):
                     section_name = parsed[0]
                     section_data = parsed[1]
                     sections[section_name] = section_data
-            except:
+            except json.JSONDecodeError:
                 pass
                 
         return sections
     except Exception as e:
-        print(f"Error running Speedify CLI: {e}")
+        logger.error(f"Error running Speedify CLI: {e}")
         return {}
 
 def calculate_health_score(latency, jitter, mos, loss_send, loss_receive):
@@ -168,14 +180,14 @@ def get_status():
     stats_data = run_speedify_cli(["stats", "1"])
     
     # Get current settings for accurate bonding mode
-    settings_result = subprocess.run(['/usr/share/speedify/speedify_cli', 'show', 'settings'],
+    settings_result = subprocess.run([SPEEDIFY_CLI_PATH, 'show', 'settings'],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                    timeout=10)
     current_settings = {}
     if settings_result.returncode == 0:
         try:
             current_settings = json.loads(settings_result.stdout.strip())
-        except:
+        except json.JSONDecodeError:
             pass
     
     # Extract different sections
@@ -324,7 +336,7 @@ def get_status():
 def get_server():
     try:
         # Get current server info - this returns direct JSON, not sectioned like stats
-        result = subprocess.run(['/usr/share/speedify/speedify_cli', 'show', 'currentserver'],
+        result = subprocess.run([SPEEDIFY_CLI_PATH, 'show', 'currentserver'],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                               timeout=10)
         
@@ -341,20 +353,20 @@ def get_server():
                 "publicIP": public_ip
             })
         else:
-            print(f"Speedify CLI error: {result.stderr}")
+            logger.warning(f"Speedify CLI error: {result.stderr}")
             return jsonify({
                 "location": "CLI Error",
                 "publicIP": "CLI Error"
             })
             
     except json.JSONDecodeError as e:
-        print(f"JSON decode error: {e}")
+        logger.error(f"JSON decode error: {e}")
         return jsonify({
             "location": "Parse Error",
             "publicIP": "Parse Error"
         })
     except Exception as e:
-        print(f"Error getting server info: {e}")
+        logger.error(f"Error getting server info: {e}")
         return jsonify({
             "location": "Error",
             "publicIP": "Error"
@@ -365,8 +377,14 @@ def get_server():
 def change_mode():
     try:
         data = request.get_json()
+        if data is None:
+            return jsonify({
+                "success": False,
+                "error": "Request body must be valid JSON"
+            }), 400
+
         mode = data.get('mode', '').lower()
-        
+
         # Validate mode
         if mode not in ['speed', 'streaming', 'redundant']:
             return jsonify({
@@ -375,7 +393,7 @@ def change_mode():
             }), 400
         
         # Execute the mode change command
-        result = subprocess.run(['/usr/share/speedify/speedify_cli', 'mode', mode],
+        result = subprocess.run([SPEEDIFY_CLI_PATH, 'mode', mode],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                               timeout=10)
         
@@ -392,11 +410,12 @@ def change_mode():
             }), 500
             
     except Exception as e:
-        print(f"Error changing mode: {e}")
+        logger.error(f"Error changing mode: {e}")
         return jsonify({
             "success": False,
             "error": str(e)
         }), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)

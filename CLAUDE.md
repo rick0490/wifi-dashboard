@@ -26,18 +26,25 @@ The machine also functions as a WiFi access point, allowing other devices to con
 
 ### Access Point Configuration
 
-**Important:** The initial Speedify install creates an access point with insecure default settings. A custom NetworkManager connection was created to replace it:
+**Important:** The initial Speedify install creates an access point with insecure default settings. The setup script creates a secure custom NetworkManager connection to replace it.
+
+The setup script prompts for:
+- **SSID** - Network name (default: PokemonWifi)
+- **Password** - WPA2 password (minimum 8 characters)
+
+The connection is named `speedify-share` and configured with:
+- WPA2-PSK security (RSN/CCMP)
+- 2.4GHz band, channel 6
+- IP sharing via 192.168.145.1/24
+
+To manually create or modify the access point:
 
 ```bash
-sudo nmcli con add con-name speedify-share ifname wlp1s0 type wifi ip4 192.168.145.1/24 ssid PokemonWifi
+nmcli con add con-name speedify-share ifname <wifi-interface> type wifi ip4 192.168.145.1/24 ssid <YOUR_SSID>
+nmcli con modify speedify-share 802-11-wireless.mode ap 802-11-wireless.band bg \
+    wifi-sec.key-mgmt wpa-psk wifi-sec.psk "<YOUR_PASSWORD>" ipv4.method shared
+nmcli con up speedify-share
 ```
-
-Additional `nmcli connection modify speedify-share` commands were used to configure:
-- WiFi security (WPA2/WPA3)
-- Channel and band settings
-- Power save options
-
-The connection is named `speedify-share` with SSID `PokemonWifi`.
 
 ## Running the Application
 
@@ -81,7 +88,30 @@ Vanilla HTML/CSS/JavaScript with Material design-inspired dark theme. No build p
 bash -c "$(curl -sL https://get.speedify.com)"
 ```
 
+## New Machine Setup
+
+A setup script automates the full installation on Debian/Ubuntu systems:
+
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/rick0490/wifi-dashboard/main/new_machine_setup.sh)
+```
+
+The script handles:
+1. Installing system dependencies (python3, network-manager, git, etc.)
+2. Installing Speedify and configuring auto-connect on boot
+3. Cloning the dashboard repository
+4. Installing Flask via apt (python3-flask)
+5. Configuring the WiFi access point (prompts for SSID and password)
+6. Installing and enabling the systemd service
+
+**Compatibility:**
+- Debian 12+ / Ubuntu 22.04+
+- Works as root (no sudo required) or with sudo
+- Handles PEP 668 (externally-managed-environment) on modern systems
+
 ## Key Files
 
 - `app.py` - All backend logic, API routes, and Speedify CLI integration
 - `templates/index.html` - Complete frontend (HTML, CSS, and JavaScript in one file)
+- `new_machine_setup.sh` - Automated setup script for new Debian/Ubuntu machines
+- `wifi-dashboard.service` - systemd service unit file

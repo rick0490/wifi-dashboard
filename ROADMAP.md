@@ -424,6 +424,7 @@ These features directly support the machine's core purpose and should be priorit
 
 | Feature | Use Case | Complexity |
 |---------|----------|------------|
+| **Connection Health Widget** | All | Low | ✅ IMPLEMENTED |
 | Transaction-Safe Indicator | POS | Low |
 | POS Mode Preset | POS | Low |
 | Bitrate Recommendation | Streaming | Low |

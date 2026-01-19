@@ -119,6 +119,22 @@ Vanilla HTML/CSS/JavaScript with Material design-inspired dark theme. No build p
 bash -c "$(curl -sL https://get.speedify.com)"
 ```
 
+### Speedify CLI Reference
+
+See `SPEEDIFY_CLI.md` for complete CLI command documentation. Key commands used by this dashboard:
+
+| Command | Purpose |
+|---------|---------|
+| `speedify_cli stats 1` | Get real-time connection statistics |
+| `speedify_cli show settings` | Get current bonding mode and settings |
+| `speedify_cli show currentserver` | Get server location and public IP |
+| `speedify_cli mode <mode>` | Switch bonding mode (speed/streaming/redundant) |
+| `speedify_cli show adapters` | List all network adapters |
+
+**Planned CLI Integrations:** See the "CLI-Based Features" section in `ROADMAP.md` for 20+ additional CLI commands that can be leveraged to enhance the dashboard (adapter priority control, data limits, speed tests, captive portal detection, etc.).
+
+Full CLI documentation: [Speedify CLI Support Article](https://support.speedify.com/article/285-speedify-cli)
+
 ## New Machine Setup
 
 A setup script automates the full installation on Debian/Ubuntu systems:
@@ -147,7 +163,8 @@ The script handles:
 - `test_e2e.py` - Comprehensive E2E test suite (69 tests)
 - `new_machine_setup.sh` - Automated setup script for new Debian/Ubuntu machines
 - `wifi-dashboard.service` - systemd service unit file
-- `ROADMAP.md` - Project roadmap, completed features, and planned improvements
+- `ROADMAP.md` - Project roadmap, completed features, planned improvements, and CLI-Based Features reference
+- `SPEEDIFY_CLI.md` - Complete Speedify CLI command reference
 
 ## Running Tests
 

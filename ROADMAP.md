@@ -582,6 +582,97 @@ These features directly support the machine's core purpose and should be priorit
 
 ---
 
+## CLI-Based Features
+
+Features leveraging unused Speedify CLI commands, organized by category.
+
+### Currently Used CLI Commands
+
+| Command | Endpoint | Purpose |
+|---------|----------|---------|
+| `stats 1` | `/api/status` | Real-time connection stats |
+| `show settings` | `/api/status` | Bonding mode configuration |
+| `show currentserver` | `/api/server` | Server location and public IP |
+| `mode <mode>` | `/api/change-mode` | Switch bonding modes |
+
+### Monitoring & Display Features (Read-Only)
+
+| Feature | CLI Command | Description | Value | Complexity |
+|---------|-------------|-------------|-------|------------|
+| Connection State Banner | `state` | Display state (CONNECTED, OVERLIMIT, etc.) | Critical | Low |
+| Last Disconnect Reason | `show disconnect` | Show why connection dropped | High | Low |
+| Detailed Adapter View | `show adapters` | Full adapter config (priority, limits, encryption) | High | Low |
+| Data Usage Dashboard | `show adapters` | Usage vs daily/monthly limits per adapter | Critical | Low |
+| Captive Portal Alert | `captiveportal check` | Detect portal blocking at venues | High | Low |
+| Privacy Settings Panel | `show privacy` | DNS, DoH, ISP stats settings | Low | Low |
+| Streaming Bypass Rules | `show streamingbypass` | Services bypassing VPN | Medium | Low |
+| Server Browser | `show servers` | Available servers by location | High | Medium |
+| Historical Stats | `stats historic day` | Performance trends over time | High | High |
+| Speedify Version | `version` | Installed version in footer | Low | Low |
+
+### Control & Configuration Features
+
+| Feature | CLI Command | Description | Value | Complexity |
+|---------|-------------|-------------|-------|------------|
+| Adapter Priority Control | `adapter priority <id> <level>` | Set always/secondary/backup/never | Critical | Low |
+| Adapter Enable/Disable | `adapter priority <id> never` | Toggle adapter on/off | Critical | Low |
+| Manual Connect/Disconnect | `connect` / `disconnect` | VPN connection control | High | Low |
+| Server Selection | `connect <country> [city]` | Connect to specific server | High | Medium |
+| Daily Data Cap | `adapter datalimit daily <id> <bytes>` | Set daily limit per adapter | Critical | Medium |
+| Monthly Data Cap | `adapter datalimit monthly <id> <bytes> <day>` | Set monthly limit with reset | Critical | Medium |
+| Reset Adapter Usage | `adapter resetusage <id>` | Clear usage statistics | Medium | Low |
+| Rate Limiting | `adapter ratelimit <id> <bps>` | Throttle adapter speed | Medium | Medium |
+| Captive Portal Login | `captiveportal login on <id>` | Trigger portal auth flow | High | Low |
+| Startup Auto-Connect | `startupconnect <on/off>` | Auto-connect on boot | Medium | Low |
+
+### Diagnostics & Testing Features
+
+| Feature | CLI Command | Description | Value | Complexity |
+|---------|-------------|-------------|-------|------------|
+| On-Demand Speed Test | `speedtest [adapter id]` | iPerf3 performance test | Critical | Medium |
+| Stream Test | `streamtest [adapter id]` | Simulate 60 Mbps UDP stream | High | Medium |
+| Speed Test History | `show speedtest` | Previous test results | Medium | Low |
+| Disconnect Diagnostics | `show disconnect` | Detailed failure reason | High | Low |
+
+### Event-Specific CLI Features
+
+#### POS Features
+| Feature | CLI Commands | Description | Value | Complexity |
+|---------|--------------|-------------|-------|------------|
+| Transaction-Safe Indicator | `state` + `stats 1` | "SAFE TO SELL" based on state + metrics | Critical | Low |
+| POS Mode Preset | `mode redundant` | One-click payment optimization | Critical | Low |
+
+#### Streaming Features
+| Feature | CLI Commands | Description | Value | Complexity |
+|---------|--------------|-------------|-------|------------|
+| Stream Readiness Check | `streamtest` | Pre-stream stability test | Critical | Medium |
+| Bitrate Recommendation | `stats 1` (sendBps) | Calculate safe bitrate from upload | Critical | Low |
+| Stream Mode Preset | `mode streaming` | One-click streaming optimization | High | Low |
+
+#### Field Deployment Features
+| Feature | CLI Commands | Description | Value | Complexity |
+|---------|--------------|-------------|-------|------------|
+| Carrier Failover Status | `show adapters` | Which adapter is primary/backup | Critical | Low |
+| Cellular Data Tracking | `show adapters` | Per-carrier usage vs limits | Critical | Low |
+| Emergency Reconnect | `disconnect` + `connect closest` | Quick connection reset | High | Low |
+
+### Proposed API Endpoints
+
+| Endpoint | Method | CLI Command | Purpose |
+|----------|--------|-------------|---------|
+| `/api/state` | GET | `state` | Connection state |
+| `/api/disconnect-reason` | GET | `show disconnect` | Last disconnect info |
+| `/api/adapters/detailed` | GET | `show adapters` | Full adapter config |
+| `/api/adapters/<id>/priority` | POST | `adapter priority` | Set priority |
+| `/api/adapters/<id>/datalimit` | POST | `adapter datalimit` | Set data cap |
+| `/api/speedtest` | POST | `speedtest` | Run speed test |
+| `/api/captiveportal/check` | GET | `captiveportal check` | Portal detection |
+| `/api/servers` | GET | `show servers` | Available servers |
+| `/api/connect` | POST | `connect` | Connect to server |
+| `/api/disconnect` | POST | `disconnect` | Disconnect VPN |
+
+---
+
 ## Technical Debt Summary
 
 ### Code Quality Issues

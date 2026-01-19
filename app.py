@@ -49,6 +49,68 @@ def run_speedify_cli(cmd_args):
         print(f"Error running Speedify CLI: {e}")
         return {}
 
+def calculate_health_score(latency, jitter, mos, loss_send, loss_receive):
+    """Calculate health score 0-100 based on connection metrics.
+
+    Weights:
+    - MOS: 40% (most comprehensive single metric)
+    - Latency: 25%
+    - Jitter: 20%
+    - Packet Loss: 15%
+    """
+    # MOS score (1-5 scale) -> 0-40 points
+    # 4.0+ = excellent (36-40), 3.5-4.0 = good (28-36), 3.0-3.5 = fair (20-28), <3.0 = poor (0-20)
+    if mos >= 4.0:
+        mos_score = 36 + (mos - 4.0) * 4  # 36-40
+    elif mos >= 3.5:
+        mos_score = 28 + (mos - 3.5) * 16  # 28-36
+    elif mos >= 3.0:
+        mos_score = 20 + (mos - 3.0) * 16  # 20-28
+    elif mos > 0:
+        mos_score = max(0, mos * 6.67)  # 0-20
+    else:
+        mos_score = 40  # No MOS data, assume good
+
+    # Latency (0-200ms) -> 0-25 points (lower is better)
+    # <50ms = excellent (22-25), 50-100ms = good (15-22), 100-200ms = fair (5-15), >200ms = poor (0-5)
+    if latency <= 50:
+        latency_score = 22 + (50 - latency) / 50 * 3  # 22-25
+    elif latency <= 100:
+        latency_score = 15 + (100 - latency) / 50 * 7  # 15-22
+    elif latency <= 200:
+        latency_score = 5 + (200 - latency) / 100 * 10  # 5-15
+    else:
+        latency_score = max(0, 5 - (latency - 200) / 100 * 5)  # 0-5
+
+    # Jitter (0-50ms) -> 0-20 points (lower is better)
+    # <10ms = excellent (18-20), 10-30ms = good (10-18), 30-50ms = fair (5-10), >50ms = poor (0-5)
+    if jitter <= 10:
+        jitter_score = 18 + (10 - jitter) / 10 * 2  # 18-20
+    elif jitter <= 30:
+        jitter_score = 10 + (30 - jitter) / 20 * 8  # 10-18
+    elif jitter <= 50:
+        jitter_score = 5 + (50 - jitter) / 20 * 5  # 5-10
+    else:
+        jitter_score = max(0, 5 - (jitter - 50) / 50 * 5)  # 0-5
+
+    # Packet loss (0-5%) -> 0-15 points (lower is better)
+    # 0% = perfect (15), <0.5% = excellent (12-15), 0.5-1% = good (8-12), 1-5% = fair (2-8), >5% = poor (0-2)
+    total_loss = max(loss_send, loss_receive) * 100  # Convert to percentage
+    if total_loss == 0:
+        loss_score = 15
+    elif total_loss < 0.5:
+        loss_score = 12 + (0.5 - total_loss) / 0.5 * 3  # 12-15
+    elif total_loss < 1.0:
+        loss_score = 8 + (1.0 - total_loss) / 0.5 * 4  # 8-12
+    elif total_loss < 5.0:
+        loss_score = 2 + (5.0 - total_loss) / 4.0 * 6  # 2-8
+    else:
+        loss_score = max(0, 2 - (total_loss - 5.0) / 5.0 * 2)  # 0-2
+
+    total_score = mos_score + latency_score + jitter_score + loss_score
+    return round(min(100, max(0, total_score)))
+
+
 def calculate_status_level(latency, jitter, mos, loss_send, loss_receive):
     """Calculate status level: good, warn, bad"""
     issues = 0
@@ -185,7 +247,10 @@ def get_status():
     
     # Overall status calculation
     overall_status = calculate_status_level(avg_latency, avg_jitter, avg_mos, avg_loss_send, avg_loss_receive)
-    
+
+    # Calculate health score (0-100)
+    health_score = calculate_health_score(avg_latency, avg_jitter, avg_mos, avg_loss_send, avg_loss_receive)
+
     # Session statistics
     session_total = session_stats.get("total", {})
     uptime_minutes = session_total.get("totalConnectedMinutes", 0)
@@ -230,6 +295,7 @@ def get_status():
         "overall": {
             "state": overall_state,
             "status": overall_status,
+            "healthScore": health_score,
             "bondingMode": bonding_mode,
             "badIndicators": bad_indicators
         },

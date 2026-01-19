@@ -442,6 +442,110 @@
             border: 1px solid rgba(255, 68, 68, 0.2);
         }
 
+        /* Health Widget */
+        .health-widget {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px auto 30px;
+            padding: 25px 40px;
+            background: linear-gradient(145deg, #1a1a1a 0%, #252525 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .health-score-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .health-score-ring {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--health-color, #00ff88) calc(var(--health-percent, 0) * 3.6deg),
+                rgba(255, 255, 255, 0.1) 0deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: pulse-ring 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% { box-shadow: 0 0 20px rgba(var(--health-rgb, 0, 255, 136), 0.3); }
+            50% { box-shadow: 0 0 40px rgba(var(--health-rgb, 0, 255, 136), 0.5); }
+        }
+
+        .health-score-inner {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .health-score-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--health-color, #00ff88);
+            line-height: 1;
+        }
+
+        .health-score-label {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .health-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .health-status {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--health-color, #00ff88);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .health-description {
+            font-size: 0.9rem;
+            color: #999;
+            max-width: 200px;
+        }
+
+        .health-trend {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .health-trend-arrow {
+            font-size: 1rem;
+        }
+
+        .health-trend-arrow.up { color: #00ff88; }
+        .health-trend-arrow.down { color: #ff4444; }
+        .health-trend-arrow.stable { color: #888; }
+
         /* Mobile responsiveness */
         @media (max-width: 1200px) {
             .dashboard {
@@ -494,6 +598,27 @@
                 <span id="bonding-mode">Loading...</span>
             </div>
         </div>
+
+        <!-- Connection Health Widget -->
+        <div class="health-widget" id="health-widget">
+            <div class="health-score-container">
+                <div class="health-score-ring" id="health-ring">
+                    <div class="health-score-inner">
+                        <div class="health-score-value" id="health-score">--</div>
+                        <div class="health-score-label">Health</div>
+                    </div>
+                </div>
+            </div>
+            <div class="health-info">
+                <div class="health-status" id="health-status">Loading...</div>
+                <div class="health-description" id="health-description">Analyzing connection quality...</div>
+                <div class="health-trend" id="health-trend">
+                    <span class="health-trend-arrow stable" id="health-trend-arrow">→</span>
+                    <span id="health-trend-text">Measuring trend...</span>
+                </div>
+            </div>
+        </div>
+
         <div class="mode-controls">
             <button class="mode-button" id="mode-streaming" onclick="changeMode('streaming')">
                 Streaming
@@ -601,6 +726,80 @@
     </div>
 
     <script>
+        // Track previous health score for trend calculation
+        let previousHealthScore = null;
+
+        function updateHealthWidget(score, status) {
+            const healthScore = document.getElementById('health-score');
+            const healthStatus = document.getElementById('health-status');
+            const healthDescription = document.getElementById('health-description');
+            const healthRing = document.getElementById('health-ring');
+            const healthWidget = document.getElementById('health-widget');
+            const healthTrendArrow = document.getElementById('health-trend-arrow');
+            const healthTrendText = document.getElementById('health-trend-text');
+
+            // Determine color based on score
+            let color, rgb, statusText, description;
+            if (score >= 80) {
+                color = '#00ff88';
+                rgb = '0, 255, 136';
+                statusText = 'Excellent';
+                description = 'Connection is optimal for all activities';
+            } else if (score >= 60) {
+                color = '#88ff00';
+                rgb = '136, 255, 0';
+                statusText = 'Good';
+                description = 'Connection is stable and reliable';
+            } else if (score >= 40) {
+                color = '#ffaa00';
+                rgb = '255, 170, 0';
+                statusText = 'Fair';
+                description = 'Some degradation, monitor closely';
+            } else if (score >= 20) {
+                color = '#ff6600';
+                rgb = '255, 102, 0';
+                statusText = 'Poor';
+                description = 'Connection issues detected';
+            } else {
+                color = '#ff4444';
+                rgb = '255, 68, 68';
+                statusText = 'Critical';
+                description = 'Severe connection problems';
+            }
+
+            // Update score and colors
+            healthScore.textContent = score;
+            healthScore.style.color = color;
+            healthStatus.textContent = statusText;
+            healthStatus.style.color = color;
+            healthDescription.textContent = description;
+
+            // Update ring gradient
+            healthRing.style.setProperty('--health-color', color);
+            healthRing.style.setProperty('--health-rgb', rgb);
+            healthRing.style.setProperty('--health-percent', score);
+            healthRing.style.background = `conic-gradient(${color} ${score * 3.6}deg, rgba(255, 255, 255, 0.1) 0deg)`;
+
+            // Calculate trend
+            if (previousHealthScore !== null) {
+                const diff = score - previousHealthScore;
+                if (diff > 2) {
+                    healthTrendArrow.textContent = '↑';
+                    healthTrendArrow.className = 'health-trend-arrow up';
+                    healthTrendText.textContent = 'Improving';
+                } else if (diff < -2) {
+                    healthTrendArrow.textContent = '↓';
+                    healthTrendArrow.className = 'health-trend-arrow down';
+                    healthTrendText.textContent = 'Degrading';
+                } else {
+                    healthTrendArrow.textContent = '→';
+                    healthTrendArrow.className = 'health-trend-arrow stable';
+                    healthTrendText.textContent = 'Stable';
+                }
+            }
+            previousHealthScore = score;
+        }
+
         function getStatusClass(value, type) {
             if (value === 'N/A' || value === 0) return 'good';
             
@@ -655,7 +854,10 @@
                     
                     // Update mode buttons
                     updateModeButtons(data.overall.bondingMode);
-                    
+
+                    // Update health widget
+                    updateHealthWidget(data.overall.healthScore, data.overall.status);
+
                     // Update performance card status
                     const performanceCard = document.getElementById("performance-card");
                     performanceCard.className = `card ${data.overall.status}`;

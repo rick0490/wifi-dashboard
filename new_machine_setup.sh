@@ -105,8 +105,11 @@ echo -e "${YELLOW}[6/7] Configuring WiFi Access Point...${NC}"
 WIFI_IFACE=$(nmcli -t -f DEVICE,TYPE device status | grep ':wifi$' | cut -d: -f1 | head -1)
 if [ -z "$WIFI_IFACE" ]; then
     echo -e "${YELLOW}No WiFi interface found - skipping AP setup${NC}"
+    WIFI_SSID=""
 else
     echo "Using WiFi interface: $WIFI_IFACE"
+    read -p "Enter WiFi SSID [PokemonWifi]: " WIFI_SSID
+    WIFI_SSID="${WIFI_SSID:-PokemonWifi}"
     read -s -p "Enter WiFi password (min 8 chars): " WIFI_PSK
     echo ""
     if [ ${#WIFI_PSK} -lt 8 ]; then
@@ -115,13 +118,13 @@ else
     fi
     $SUDO nmcli con delete speedify-share 2>/dev/null || true
     $SUDO nmcli con add con-name speedify-share \
-        ifname "$WIFI_IFACE" type wifi ip4 192.168.145.1/24 ssid PokemonWifi
+        ifname "$WIFI_IFACE" type wifi ip4 192.168.145.1/24 ssid "$WIFI_SSID"
     $SUDO nmcli con modify speedify-share \
         802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 6 \
         wifi-sec.key-mgmt wpa-psk wifi-sec.proto rsn wifi-sec.pairwise ccmp \
         wifi-sec.group ccmp wifi-sec.psk "$WIFI_PSK" ipv4.method shared
     $SUDO nmcli con up speedify-share
-    echo -e "${GREEN}OK - PokemonWifi active${NC}"
+    echo -e "${GREEN}OK - $WIFI_SSID active${NC}"
 fi
 
 # --- Step 7: Install systemd service ---
@@ -151,7 +154,9 @@ echo ""
 echo "Dashboard: http://localhost:5000"
 echo "           http://192.168.145.1:5000 (WiFi)"
 echo ""
-echo "WiFi: PokemonWifi (password set during setup)"
+if [ -n "$WIFI_SSID" ]; then
+    echo "WiFi: $WIFI_SSID (password set during setup)"
+fi
 echo ""
 echo "Update: cd ~/wifi_dashboard && git pull && $SUDO systemctl restart wifi-dashboard"
 echo ""

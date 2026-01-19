@@ -62,17 +62,18 @@ if [ "$SPEEDIFY_STATE" != "CONNECTED" ] && [ "$SPEEDIFY_STATE" != "LOGGED_IN" ];
     read -p "Email: " SPEEDIFY_EMAIL
     read -s -p "Password: " SPEEDIFY_PASS
     echo ""
-    /usr/share/speedify/speedify_cli login "$SPEEDIFY_EMAIL" "$SPEEDIFY_PASS"
+    # Login and enable auto-connect on boot with saved credentials
+    /usr/share/speedify/speedify_cli startupconnect on "$SPEEDIFY_EMAIL" "$SPEEDIFY_PASS"
 else
     echo "Speedify already logged in"
+    # Ensure auto-connect is enabled
+    /usr/share/speedify/speedify_cli startupconnect on
 fi
 # Connect to Speedify server
 if [ "$SPEEDIFY_STATE" != "CONNECTED" ]; then
     echo "Connecting to Speedify..."
     /usr/share/speedify/speedify_cli connect
 fi
-# Enable auto-connect on boot
-/usr/share/speedify/speedify_cli startupconnect on
 echo -e "${GREEN}OK${NC}"
 
 # --- Step 4: Clone dashboard from GitHub ---

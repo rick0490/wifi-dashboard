@@ -42,22 +42,6 @@
             font-weight: 400;
         }
 
-        .overall-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 15px;
-            padding: 15px 30px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            margin-bottom: 20px;
-        }
-
         .mode-controls {
             display: flex;
             justify-content: center;
@@ -119,14 +103,6 @@
             border-top: 2px solid currentColor;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            font-weight: 500;
         }
 
         .status-dot {
@@ -392,6 +368,95 @@
             border: 1px solid rgba(255, 68, 68, 0.2);
         }
 
+        /* Status Bar: Connection state + Server info */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 15px auto 0;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            max-width: 900px;
+        }
+
+        .status-bar-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .status-bar-item .status-dot {
+            width: 10px;
+            height: 10px;
+        }
+
+        .status-bar-label {
+            color: #666;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-bar-value {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .status-bar-value.good { color: #00ff88; }
+        .status-bar-value.warn { color: #ffaa00; }
+        .status-bar-value.bad { color: #ff4444; }
+
+        .status-bar-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .status-bar {
+                padding: 10px 15px;
+                gap: 6px;
+            }
+            .status-bar-item {
+                padding: 5px 10px;
+                font-size: 0.8rem;
+            }
+            .status-bar-divider {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .status-bar {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .status-bar-item {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
         /* Combined Health + Metrics Widget */
         .status-hero {
             display: flex;
@@ -653,11 +718,6 @@
             .dashboard { gap: 20px; }
             .card { padding: 20px; }
             .session-grid { grid-template-columns: 1fr; }
-            .overall-status {
-                flex-direction: column;
-                gap: 10px;
-                padding: 15px 20px;
-            }
         }
 
         /* Dark scrollbar */
@@ -849,13 +909,27 @@
     <div class="header">
         <h1>Speedify Dashboard</h1>
         <p class="subtitle">Advanced Network Bonding Monitor</p>
-        <div class="overall-status">
-            <div class="status-indicator">
+
+        <!-- Status Bar: Connection state + Server info -->
+        <div class="status-bar">
+            <div class="status-bar-item">
                 <div class="status-dot good" id="overall-dot"></div>
-                <span id="overall-state">Connecting...</span>
+                <span class="status-bar-value" id="overall-state">Connecting...</span>
             </div>
-            <div class="status-indicator">
-                <span id="bonding-mode">Loading...</span>
+            <div class="status-bar-divider"></div>
+            <div class="status-bar-item">
+                <span class="status-bar-label">Mode</span>
+                <span class="mode-badge" id="bonding-mode">...</span>
+            </div>
+            <div class="status-bar-divider"></div>
+            <div class="status-bar-item">
+                <span class="status-bar-label">Server</span>
+                <span class="status-bar-value" id="server-location">...</span>
+            </div>
+            <div class="status-bar-divider"></div>
+            <div class="status-bar-item">
+                <span class="status-bar-label">IP</span>
+                <span class="status-bar-value" id="server-ip">...</span>
             </div>
         </div>
 
@@ -915,22 +989,6 @@
     </div>
 
     <div class="dashboard">
-        <div class="section server-info">
-            <h2 class="section-title">Server Information</h2>
-            <div class="card">
-                <div class="adapter-details" style="grid-template-columns: 1fr 1fr;">
-                    <div class="adapter-detail">
-                        <span class="detail-label">Location</span>
-                        <span class="detail-value" id="server-location"><div class="loading"></div></span>
-                    </div>
-                    <div class="adapter-detail">
-                        <span class="detail-label">Public IP</span>
-                        <span class="detail-value" id="server-ip"><div class="loading"></div></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="section">
             <h2 class="section-title">Session Statistics</h2>
             <div class="card">
@@ -1141,15 +1199,16 @@
                     // Clear connection error state on successful fetch
                     setConnectionError(false);
 
-                    // Update overall status
+                    // Update overall status in status bar
                     const overallDot = document.getElementById("overall-dot");
                     const overallState = document.getElementById("overall-state");
                     const bondingMode = document.getElementById("bonding-mode");
-                    
+
                     overallDot.className = `status-dot ${data.overall.status}`;
-                    overallState.textContent = `${data.overall.state} (${data.overall.status.toUpperCase()})`;
-                    bondingMode.textContent = `Mode: ${data.overall.bondingMode.toUpperCase()}`;
-                    
+                    overallState.textContent = data.overall.state;
+                    overallState.className = `status-bar-value ${data.overall.status}`;
+                    bondingMode.textContent = data.overall.bondingMode.toUpperCase();
+
                     // Update mode buttons
                     updateModeButtons(data.overall.bondingMode);
 
@@ -1336,7 +1395,7 @@
                 if (data.success) {
                     // Update UI immediately to show the change
                     updateModeButtons(mode);
-                    document.getElementById("bonding-mode").textContent = `Mode: ${mode.toUpperCase()}`;
+                    document.getElementById("bonding-mode").textContent = mode.toUpperCase();
                     showToast('success', 'Mode Changed', `Switched to ${mode} mode`);
 
                     // Refresh data after a short delay to get updated status

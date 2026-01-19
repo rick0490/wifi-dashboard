@@ -25,15 +25,15 @@ This machine is a **portable network bonding solution** designed for:
 | Server API (`GET /api/server`) | PASSED |
 | Mode change validation (`POST /api/change-mode`) | PASSED |
 | Frontend-Backend integration | PASSED |
-| Health Widget display | PASSED |
+| Status Bar component | PASSED |
+| Status Hero component | PASSED |
 
 **Current Metrics:**
 - Overall Status: CONNECTED (good)
+- Health Score: 96
 - MOS Score: 4.39
-- Latency: 26.0 ms
-- Jitter: 2.5 ms
-- Uptime: 52+ days
-- Health Score: Calculated and displayed correctly
+- Latency: 23.0 ms
+- Active Connections: 4
 
 ---
 
@@ -67,6 +67,18 @@ This machine is a **portable network bonding solution** designed for:
   - Added debounce flag to prevent rapid mode button clicks
   - Separated polling intervals (status: 3s, server: 30s)
 
+### UI Consolidation (v1.3.0)
+- [x] **Status Hero** - Merged health widget + performance metrics
+  - Health score ring with color-coded status (Excellent/Good/Fair/Poor/Critical)
+  - 4 metric tiles: Latency, Jitter, MOS, Packet Loss
+  - Responsive: horizontal on desktop, 2x2 grid on mobile
+
+- [x] **Status Bar** - Merged overall status + server info
+  - Connection state with animated status dot
+  - Bonding mode badge (cyan highlight)
+  - Server location and public IP inline
+  - Compact horizontal bar above Status Hero
+
 ---
 
 ## Phase 1: Bug Fixes & Code Quality (High Priority)
@@ -87,7 +99,7 @@ This machine is a **portable network bonding solution** designed for:
 - Debug mode now controlled via `FLASK_DEBUG` environment variable
 - Request validation returns 400 for invalid JSON body
 
-### Frontend (`templates/index.html`) - 1308 lines total
+### Frontend (`templates/index.html`) - 1440 lines total
 
 | Issue | Location | Description | Status |
 |-------|----------|-------------|--------|
@@ -676,18 +688,20 @@ index.html (1308 lines):
 | 1.0.0 | Initial | Base dashboard with status, server, mode controls |
 | 1.0.1 | - | Fixed MOS averaging, added subprocess timeouts, aligned thresholds |
 | 1.1.0 | 2025-01-19 | Added Connection Health Widget with score ring, trend tracking, color-coded status |
+| 1.2.0 | 2025-01-19 | Code quality: logging, env vars, toast notifications, debounce |
+| 1.3.0 | 2025-01-19 | UI consolidation: Status Bar + Status Hero merged components |
 
 ### Current Codebase Stats (as of 2025-01-19)
 
 | Metric | Value |
 |--------|-------|
 | Backend (app.py) | 420 lines |
-| Frontend (index.html) | 1308 lines |
+| Frontend (index.html) | 1440 lines |
 | Setup Script | 163 lines |
 | API Endpoints | 4 (`/`, `/api/status`, `/api/server`, `/api/change-mode`) |
 | Backend Code Quality Issues | 0 (all resolved) |
 | Frontend Code Quality Issues | 0 (all resolved) |
-| E2E Tests | 6/6 passing |
+| E2E Tests | 7/7 passing |
 | Uptime | 52+ days |
 
 ---

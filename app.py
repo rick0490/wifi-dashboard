@@ -4,6 +4,8 @@ import json
 import datetime
 import logging
 import os
+import time
+from threading import Lock
 
 # Configure logging
 logging.basicConfig(
@@ -14,22 +16,71 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 SPEEDIFY_CLI_PATH = '/usr/share/speedify/speedify_cli'
+CACHE_TTL_SECONDS = 2  # Cache CLI results for 2 seconds
+
+# Response cache with thread safety
+_cache = {}
+_cache_lock = Lock()
+
+
+def get_cached_result(cache_key):
+    """Get cached result if not expired."""
+    with _cache_lock:
+        if cache_key in _cache:
+            cached_data, timestamp = _cache[cache_key]
+            if time.time() - timestamp < CACHE_TTL_SECONDS:
+                logger.debug(f"Cache hit for {cache_key}")
+                return cached_data
+            else:
+                # Expired, remove from cache
+                del _cache[cache_key]
+    return None
+
+
+def set_cached_result(cache_key, data):
+    """Store result in cache with current timestamp."""
+    with _cache_lock:
+        _cache[cache_key] = (data, time.time())
+
+
+def clear_cache():
+    """Clear all cached results."""
+    with _cache_lock:
+        _cache.clear()
+
 
 app = Flask(__name__)
 
-def run_speedify_cli(cmd_args):
+def run_speedify_cli(cmd_args, use_cache=True):
+    """Run Speedify CLI command with optional caching.
+
+    Args:
+        cmd_args: List of command arguments
+        use_cache: Whether to use cached results (default True)
+
+    Returns:
+        Dict of parsed sections from CLI output
+    """
+    cache_key = f"cli:{':'.join(cmd_args)}"
+
+    # Check cache first
+    if use_cache:
+        cached = get_cached_result(cache_key)
+        if cached is not None:
+            return cached
+
     try:
         result = subprocess.run([SPEEDIFY_CLI_PATH] + cmd_args,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                               timeout=10)
         # Parse the complex JSON structure returned by Speedify CLI
         raw_output = result.stdout.strip()
-        
+
         # The output contains multiple JSON arrays, we need to parse each section
         sections = {}
         lines = raw_output.split('\n')
         current_json = ""
-        
+
         for line in lines:
             if line.strip():
                 current_json += line
@@ -44,7 +95,7 @@ def run_speedify_cli(cmd_args):
                     except json.JSONDecodeError:
                         pass
                     current_json = ""
-        
+
         # Handle the last section if no trailing newline
         if current_json.strip():
             try:
@@ -55,7 +106,11 @@ def run_speedify_cli(cmd_args):
                     sections[section_name] = section_data
             except json.JSONDecodeError:
                 pass
-                
+
+        # Cache the result
+        if use_cache:
+            set_cached_result(cache_key, sections)
+
         return sections
     except Exception as e:
         logger.error(f"Error running Speedify CLI: {e}")
@@ -174,21 +229,33 @@ def format_bytes(bytes_val):
 def index():
     return render_template("index.html")
 
+def get_speedify_settings():
+    """Get Speedify settings with caching."""
+    cache_key = "settings"
+    cached = get_cached_result(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        result = subprocess.run([SPEEDIFY_CLI_PATH, 'show', 'settings'],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                              timeout=10)
+        if result.returncode == 0:
+            settings = json.loads(result.stdout.strip())
+            set_cached_result(cache_key, settings)
+            return settings
+    except (json.JSONDecodeError, Exception) as e:
+        logger.error(f"Error getting settings: {e}")
+    return {}
+
+
 @app.route("/api/status")
 def get_status():
     # Get comprehensive stats
     stats_data = run_speedify_cli(["stats", "1"])
-    
-    # Get current settings for accurate bonding mode
-    settings_result = subprocess.run([SPEEDIFY_CLI_PATH, 'show', 'settings'],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                   timeout=10)
-    current_settings = {}
-    if settings_result.returncode == 0:
-        try:
-            current_settings = json.loads(settings_result.stdout.strip())
-        except json.JSONDecodeError:
-            pass
+
+    # Get current settings for accurate bonding mode (cached)
+    current_settings = get_speedify_settings()
     
     # Extract different sections
     state = stats_data.get("state", {})
@@ -334,31 +401,38 @@ def get_status():
 # Add route to get current server info
 @app.route("/api/server")
 def get_server():
+    cache_key = "server"
+    cached = get_cached_result(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
     try:
         # Get current server info - this returns direct JSON, not sectioned like stats
         result = subprocess.run([SPEEDIFY_CLI_PATH, 'show', 'currentserver'],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                               timeout=10)
-        
+
         if result.returncode == 0:
             current_server = json.loads(result.stdout.strip())
-            
+
             # Extract location and IP from the known structure
             location = current_server.get("friendlyName", "Unknown")
             public_ips = current_server.get("publicIP", [])
             public_ip = public_ips[0] if public_ips and len(public_ips) > 0 else "Unknown"
-            
-            return jsonify({
+
+            response_data = {
                 "location": location,
                 "publicIP": public_ip
-            })
+            }
+            set_cached_result(cache_key, response_data)
+            return jsonify(response_data)
         else:
             logger.warning(f"Speedify CLI error: {result.stderr}")
             return jsonify({
                 "location": "CLI Error",
                 "publicIP": "CLI Error"
             })
-            
+
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error: {e}")
         return jsonify({
@@ -376,8 +450,10 @@ def get_server():
 @app.route("/api/change-mode", methods=["POST"])
 def change_mode():
     try:
-        data = request.get_json()
-        if data is None:
+        # Use silent=True to return None for invalid JSON instead of raising
+        # Use force=True to parse regardless of Content-Type header
+        data = request.get_json(silent=True, force=True)
+        if data is None or not isinstance(data, dict):
             return jsonify({
                 "success": False,
                 "error": "Request body must be valid JSON"
@@ -398,6 +474,8 @@ def change_mode():
                               timeout=10)
         
         if result.returncode == 0:
+            # Clear cache since settings have changed
+            clear_cache()
             return jsonify({
                 "success": True,
                 "message": f"Mode changed to {mode}",

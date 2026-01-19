@@ -87,14 +87,21 @@ FLASK_DEBUG=true python3 app.py
 - `POST /api/change-mode` - Switch bonding modes (speed/streaming/redundant)
 
 ### Data Flow
-1. Frontend polls `/api/status` every 3 seconds
-2. Backend executes `speedify_cli stats` via subprocess
-3. CLI JSON output is parsed and transformed for the UI
-4. Status indicators (good/warn/bad) are calculated based on thresholds:
+1. Frontend polls `/api/status` every 3 seconds (server info every 30 seconds)
+2. Backend checks response cache (2-second TTL) before executing CLI commands
+3. On cache miss, backend executes `speedify_cli stats` via subprocess
+4. CLI JSON output is parsed, cached, and transformed for the UI
+5. Status indicators (good/warn/bad) are calculated based on thresholds:
    - Latency: <50ms good, <100ms warn, ≥100ms bad
    - Jitter: <10ms good, <30ms warn, ≥30ms bad
    - Packet loss: 0% good, <1% warn, ≥1% bad
    - MOS: ≥4.0 good, ≥3.5 warn, <3.5 bad
+
+### Response Caching
+The backend implements a 2-second TTL cache to reduce subprocess calls:
+- Thread-safe using `Lock` for concurrent request handling
+- Caches: CLI stats, server info, settings
+- Cache is invalidated when bonding mode is changed
 
 ### Frontend
 Vanilla HTML/CSS/JavaScript with Material design-inspired dark theme. No build process or external JS frameworks.
@@ -135,7 +142,26 @@ The script handles:
 
 ## Key Files
 
-- `app.py` - All backend logic, API routes, and Speedify CLI integration
+- `app.py` - All backend logic, API routes, Speedify CLI integration, and response caching
 - `templates/index.html` - Complete frontend (HTML, CSS, and JavaScript in one file)
+- `test_e2e.py` - Comprehensive E2E test suite (69 tests)
 - `new_machine_setup.sh` - Automated setup script for new Debian/Ubuntu machines
 - `wifi-dashboard.service` - systemd service unit file
+- `ROADMAP.md` - Project roadmap, completed features, and planned improvements
+
+## Running Tests
+
+```bash
+# Start the server first
+python3 app.py &
+
+# Run the E2E test suite
+python3 test_e2e.py
+```
+
+The test suite covers:
+- All API endpoints and response validation
+- Response caching behavior and expiration
+- Health score calculation
+- Concurrent request handling
+- Input validation (invalid JSON, missing fields)

@@ -16,24 +16,29 @@ This machine is a **portable network bonding solution** designed for:
 
 ---
 
-## E2E Test Results (Latest - 2025-01-19)
+## E2E Test Results (Latest - 2026-01-19)
 
-| Test | Status |
-|------|--------|
-| Main page (`GET /`) | PASSED |
-| Status API (`GET /api/status`) | PASSED |
-| Server API (`GET /api/server`) | PASSED |
-| Mode change validation (`POST /api/change-mode`) | PASSED |
-| Frontend-Backend integration | PASSED |
-| Status Bar component | PASSED |
-| Status Hero component | PASSED |
+| Test Suite | Tests | Status |
+|------------|-------|--------|
+| Main Page Tests | 5 | PASSED |
+| Status API Tests | 26 | PASSED |
+| Server API Tests | 6 | PASSED |
+| Change Mode API Tests | 8 | PASSED |
+| Response Caching Tests | 8 | PASSED |
+| Health Score Validation | 2 | PASSED |
+| Adapter Data Tests | 8 | PASSED |
+| Connection Details Tests | 6 | PASSED |
+| Concurrent Request Tests | 1 | PASSED |
+
+**Total: 69/69 tests passing**
 
 **Current Metrics:**
-- Overall Status: CONNECTED (good)
-- Health Score: 96
+- Overall Status: CONNECTED
+- Health Score: 82
 - MOS Score: 4.39
-- Latency: 23.0 ms
+- Latency: 106.0 ms
 - Active Connections: 4
+- Bonding Mode: redundant
 
 ---
 
@@ -79,6 +84,24 @@ This machine is a **portable network bonding solution** designed for:
   - Server location and public IP inline
   - Compact horizontal bar above Status Hero
 
+### Performance Optimizations (v1.4.0)
+- [x] **Response Caching** - 2-second TTL cache for CLI results
+  - Thread-safe cache with `Lock` for concurrent access
+  - Cache functions: `get_cached_result()`, `set_cached_result()`, `clear_cache()`
+  - Cached endpoints: `/api/status`, `/api/server`, settings fetch
+  - Cache invalidation on mode change
+  - Backend: Cache infrastructure at lines 21-49
+
+- [x] **Comprehensive E2E Test Suite** - 69 automated tests
+  - Test file: `test_e2e.py`
+  - Covers all API endpoints, response validation, caching behavior
+  - Concurrent request handling tests
+  - Health score calculation validation
+
+- [x] **Improved JSON validation** in `change_mode()` endpoint
+  - Uses `silent=True, force=True` for robust JSON parsing
+  - Properly returns 400 for missing/invalid JSON body
+
 ---
 
 ## Phase 1: Bug Fixes & Code Quality (High Priority)
@@ -120,12 +143,12 @@ This machine is a **portable network bonding solution** designed for:
 
 ### Backend
 
-| Improvement | Description | Benefit |
-|-------------|-------------|---------|
-| Response caching | Cache CLI results for 1-2 seconds to reduce subprocess calls | Reduced CPU, faster response |
-| Separate polling intervals | Server info rarely changes - poll every 30s instead of 3s | Reduced load |
-| Health check endpoint | Add `GET /api/health` for monitoring | Better observability |
-| Connection pooling | Consider using a background thread for CLI polling | Reduced latency |
+| Improvement | Description | Benefit | Status |
+|-------------|-------------|---------|--------|
+| ~~Response caching~~ | ~~Cache CLI results for 1-2 seconds to reduce subprocess calls~~ | ~~Reduced CPU, faster response~~ | ✅ Done |
+| ~~Separate polling intervals~~ | ~~Server info rarely changes - poll every 30s instead of 3s~~ | ~~Reduced load~~ | ✅ Done |
+| Health check endpoint | Add `GET /api/health` for monitoring | Better observability | Pending |
+| Connection pooling | Consider using a background thread for CLI polling | Reduced latency | Pending |
 
 ### Frontend
 
@@ -564,14 +587,15 @@ These features directly support the machine's core purpose and should be priorit
 ### Code Quality Issues
 
 ```
-app.py (420 lines):
+app.py (499 lines):
 ├── ✅ Bare except clauses - FIXED (now uses json.JSONDecodeError)
 ├── ✅ Print statements - FIXED (now uses logging module)
 ├── ✅ Debug mode - FIXED (now uses FLASK_DEBUG env var)
 ├── ✅ Hardcoded CLI path - FIXED (now uses SPEEDIFY_CLI_PATH constant)
-└── ✅ Missing null check - FIXED (returns 400 for invalid JSON)
+├── ✅ Missing null check - FIXED (returns 400 for invalid JSON)
+└── ✅ Response caching - ADDED (2-second TTL, thread-safe)
 
-index.html (1308 lines):
+index.html (1440 lines):
 ├── ✅ Browser alert() - FIXED (replaced with toast notifications)
 ├── ✅ Polling inefficiency - FIXED (status 3s, server 30s)
 ├── ✅ No debounce - FIXED (modeChangeInProgress flag)
@@ -582,16 +606,20 @@ index.html (1308 lines):
 ### Key Functions Reference
 
 ```
-app.py (420 lines):
-├── run_speedify_cli()       Lines 20-62    CLI wrapper with JSON parsing
-├── calculate_health_score() Lines 64-123   Weighted 0-100 health algorithm
-├── calculate_status_level() Lines 126-160  Good/warn/bad status logic
-├── format_bytes()           Lines 162-171  Human-readable byte formatting
-├── get_status()             Lines 178-333  Main status API endpoint
-├── get_server()             Lines 336-373  Server info API endpoint
-└── change_mode()            Lines 377-420  Mode switching API endpoint
+app.py (499 lines):
+├── get_cached_result()      Lines 26-37    Retrieve cached data if not expired
+├── set_cached_result()      Lines 40-43    Store data with timestamp
+├── clear_cache()            Lines 46-49    Invalidate all cached data
+├── run_speedify_cli()       Lines 54-117   CLI wrapper with JSON parsing + caching
+├── calculate_health_score() Lines 119-178  Weighted 0-100 health algorithm
+├── calculate_status_level() Lines 181-215  Good/warn/bad status logic
+├── format_bytes()           Lines 217-226  Human-readable byte formatting
+├── get_speedify_settings()  Lines 232-249  Settings fetch with caching
+├── get_status()             Lines 252-399  Main status API endpoint
+├── get_server()             Lines 402-447  Server info API endpoint (cached)
+└── change_mode()            Lines 450-494  Mode switching + cache invalidation
 
-index.html (1308 lines):
+index.html (1440 lines):
 ├── showToast()             Lines 905-934  Toast notification display
 ├── setConnectionError()    Lines 937-951  Connection error banner control
 ├── updateHealthWidget()    Lines 953-1016 Health score ring visualization
@@ -604,7 +632,7 @@ index.html (1308 lines):
 ```
 
 ### Missing Features
-- No automated tests
+- ~~No automated tests~~ ✅ Added `test_e2e.py` with 69 tests
 - No CI/CD pipeline
 - No error tracking/monitoring
 - No request rate limiting
@@ -616,11 +644,11 @@ index.html (1308 lines):
 ## Recommended Implementation Order
 
 ### Phase A: Code Quality & Foundation
-1. Replace bare except clauses with specific exceptions
-2. Add logging module
-3. Add environment variable for debug mode
+1. ~~Replace bare except clauses with specific exceptions~~ ✅
+2. ~~Add logging module~~ ✅
+3. ~~Add environment variable for debug mode~~ ✅
 4. Add health check endpoint
-5. Add response caching
+5. ~~Add response caching~~ ✅
 
 ### Phase B: Critical Event Features
 1. **Transaction-Safe Indicator** - Large visual indicator for POS safety
@@ -690,19 +718,21 @@ index.html (1308 lines):
 | 1.1.0 | 2025-01-19 | Added Connection Health Widget with score ring, trend tracking, color-coded status |
 | 1.2.0 | 2025-01-19 | Code quality: logging, env vars, toast notifications, debounce |
 | 1.3.0 | 2025-01-19 | UI consolidation: Status Bar + Status Hero merged components |
+| 1.4.0 | 2026-01-19 | Performance: Response caching (2s TTL), E2E test suite (69 tests), improved JSON validation |
 
-### Current Codebase Stats (as of 2025-01-19)
+### Current Codebase Stats (as of 2026-01-19)
 
 | Metric | Value |
 |--------|-------|
-| Backend (app.py) | 420 lines |
+| Backend (app.py) | 499 lines |
 | Frontend (index.html) | 1440 lines |
+| Test Suite (test_e2e.py) | 390 lines |
 | Setup Script | 163 lines |
 | API Endpoints | 4 (`/`, `/api/status`, `/api/server`, `/api/change-mode`) |
 | Backend Code Quality Issues | 0 (all resolved) |
 | Frontend Code Quality Issues | 0 (all resolved) |
-| E2E Tests | 7/7 passing |
-| Uptime | 52+ days |
+| E2E Tests | 69/69 passing |
+| Cache TTL | 2 seconds |
 
 ---
 

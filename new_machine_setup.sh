@@ -71,6 +71,8 @@ if [ "$SPEEDIFY_STATE" != "CONNECTED" ]; then
     echo "Connecting to Speedify..."
     /usr/share/speedify/speedify_cli connect
 fi
+# Enable auto-connect on boot
+/usr/share/speedify/speedify_cli startupconnect on
 echo -e "${GREEN}OK${NC}"
 
 # --- Step 4: Clone dashboard from GitHub ---

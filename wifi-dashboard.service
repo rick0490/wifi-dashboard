@@ -1,0 +1,14 @@
+[Unit]
+Description=Speedify WiFi Dashboard
+After=network.target speedify.service
+
+[Service]
+Type=simple
+User=wifi
+WorkingDirectory=/home/wifi/wifi_dashboard
+ExecStart=/usr/bin/python3 app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

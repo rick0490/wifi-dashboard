@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speedify Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: slideDown 0.8s ease-out;
+        }
+
+        .header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            color: #888;
+            font-weight: 400;
+        }
+
+        .overall-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 20px;
+        }
+
+        .mode-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .mode-button {
+            padding: 12px 24px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            background: linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%);
+            color: #00d4ff;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .mode-button:hover:not(.active):not(.disabled) {
+            background: linear-gradient(145deg, #2a2a2a 0%, #3a3a3a 100%);
+            border-color: rgba(0, 212, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-button.active {
+            background: linear-gradient(145deg, #0a3a3a 0%, #0a4a4a 100%);
+            border-color: #00d4ff;
+            color: #fff;
+            cursor: not-allowed;
+        }
+
+        .mode-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .mode-button.loading {
+            pointer-events: none;
+        }
+
+        .mode-button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.good { background: #00ff88; }
+        .status-dot.warn { background: #ffaa00; }
+        .status-dot.bad { background: #ff4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        .dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            gap: 25px;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+        }
+
+        .server-info {
+            grid-column: 1 / -1;
+        }
+
+        .section {
+            animation: slideUp 0.8s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .section:nth-child(1) { animation-delay: 0.1s; }
+        .section:nth-child(2) { animation-delay: 0.2s; }
+        .section:nth-child(3) { animation-delay: 0.3s; }
+        .section:nth-child(4) { animation-delay: 0.4s; }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border-radius: 2px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+            height: fit-content;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), transparent);
+            transform: translateX(-100%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .card.good { 
+            border-left: 4px solid #00ff88;
+            background: linear-gradient(145deg, #1e2e1e 0%, #2a3a2a 100%);
+        }
+        .card.warn { 
+            border-left: 4px solid #ffaa00;
+            background: linear-gradient(145deg, #2e2e1e 0%, #3a3a2a 100%);
+        }
+        .card.bad { 
+            border-left: 4px solid #ff4444;
+            background: linear-gradient(145deg, #2e1e1e 0%, #3a2a2a 100%);
+        }
+
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+        }
+
+        .performance-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .performance-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(0, 212, 255, 0.2);
+        }
+
+        .performance-card.good { border-color: rgba(0, 255, 136, 0.3); }
+        .performance-card.warn { border-color: rgba(255, 170, 0, 0.3); }
+        .performance-card.bad { border-color: rgba(255, 68, 68, 0.3); }
+
+        .perf-label {
+            font-size: 0.8rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .perf-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .perf-value.good { color: #00ff88; }
+        .perf-value.warn { color: #ffaa00; }
+        .perf-value.bad { color: #ff4444; }
+
+        .perf-unit {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .session-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .session-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .session-label {
+            font-size: 0.85rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .session-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .adapter-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .adapter-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(5px);
+        }
+
+        .adapter-card.good { 
+            border-color: rgba(0, 255, 136, 0.3);
+            background: rgba(0, 255, 136, 0.05);
+        }
+        .adapter-card.warn { 
+            border-color: rgba(255, 170, 0, 0.3);
+            background: rgba(255, 170, 0, 0.05);
+        }
+        .adapter-card.bad { 
+            border-color: rgba(255, 68, 68, 0.3);
+            background: rgba(255, 68, 68, 0.05);
+        }
+
+        .adapter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .adapter-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .adapter-type {
+            font-size: 0.8rem;
+            color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .adapter-status {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .adapter-status.good { background: #00ff88; }
+        .adapter-status.warn { background: #ffaa00; }
+        .adapter-status.bad { background: #ff4444; }
+
+        .adapter-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .adapter-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .detail-label {
+            color: #ccc;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #00d4ff;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes slideDown {
+            0% { opacity: 0; transform: translateY(-30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .warning-indicators {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .warning-badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            background: rgba(255, 68, 68, 0.1);
+            color: #ff4444;
+            border: 1px solid rgba(255, 68, 68, 0.2);
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 15px; }
+            .dashboard { gap: 20px; }
+            .card { padding: 20px; }
+            .performance-grid { grid-template-columns: repeat(2, 1fr); }
+            .session-grid { grid-template-columns: 1fr; }
+            .overall-status {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px 20px;
+            }
+        }
+
+        /* Dark scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Speedify Dashboard</h1>
+        <p class="subtitle">Advanced Network Bonding Monitor</p>
+        <div class="overall-status">
+            <div class="status-indicator">
+                <div class="status-dot good" id="overall-dot"></div>
+                <span id="overall-state">Connecting...</span>
+            </div>
+            <div class="status-indicator">
+                <span id="bonding-mode">Loading...</span>
+            </div>
+        </div>
+        <div class="mode-controls">
+            <button class="mode-button" id="mode-streaming" onclick="changeMode('streaming')">
+                Streaming
+            </button>
+            <button class="mode-button" id="mode-speed" onclick="changeMode('speed')">
+                Speed
+            </button>
+            <button class="mode-button" id="mode-redundant" onclick="changeMode('redundant')">
+                Redundant
+            </button>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <div class="section server-info">
+            <h2 class="section-title">Server Information</h2>
+            <div class="card">
+                <div class="adapter-details" style="grid-template-columns: 1fr 1fr;">
+                    <div class="adapter-detail">
+                        <span class="detail-label">Location</span>
+                        <span class="detail-value" id="server-location"><div class="loading"></div></span>
+                    </div>
+                    <div class="adapter-detail">
+                        <span class="detail-label">Public IP</span>
+                        <span class="detail-value" id="server-ip"><div class="loading"></div></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Performance Metrics</h2>
+            <div class="card" id="performance-card">
+                <div class="performance-grid" id="performance-stats">
+                    <div class="performance-card">
+                        <div class="perf-label">Latency</div>
+                        <div class="perf-value" id="perf-latency"><div class="loading"></div></div>
+                        <div class="perf-unit">ms</div>
+                    </div>
+                    <div class="performance-card">
+                        <div class="perf-label">Jitter</div>
+                        <div class="perf-value" id="perf-jitter"><div class="loading"></div></div>
+                        <div class="perf-unit">ms</div>
+                    </div>
+                    <div class="performance-card">
+                        <div class="perf-label">MOS Score</div>
+                        <div class="perf-value" id="perf-mos"><div class="loading"></div></div>
+                        <div class="perf-unit">/5.0</div>
+                    </div>
+                    <div class="performance-card">
+                        <div class="perf-label">Packet Loss</div>
+                        <div class="perf-value" id="perf-loss"><div class="loading"></div></div>
+                        <div class="perf-unit">%</div>
+                    </div>
+                    <div class="performance-card">
+                        <div class="perf-label">Active Connections</div>
+                        <div class="perf-value" id="perf-connections"><div class="loading"></div></div>
+                        <div class="perf-unit">links</div>
+                    </div>
+                </div>
+                <div class="warning-indicators" id="warning-indicators"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Session Statistics</h2>
+            <div class="card">
+                <div class="session-grid">
+                    <div class="session-card">
+                        <div class="session-label">Uptime</div>
+                        <div class="session-value" id="session-uptime"><div class="loading"></div></div>
+                    </div>
+                    <div class="session-card">
+                        <div class="session-label">Data Received</div>
+                        <div class="session-value" id="session-received"><div class="loading"></div></div>
+                    </div>
+                    <div class="session-card">
+                        <div class="session-label">Data Sent</div>
+                        <div class="session-value" id="session-sent"><div class="loading"></div></div>
+                    </div>
+                    <div class="session-card">
+                        <div class="session-label">Failovers</div>
+                        <div class="session-value" id="session-failovers"><div class="loading"></div></div>
+                    </div>
+                    <div class="session-card">
+                        <div class="session-label">Max Download</div>
+                        <div class="session-value" id="session-max-down"><div class="loading"></div></div>
+                    </div>
+                    <div class="session-card">
+                        <div class="session-label">Max Upload</div>
+                        <div class="session-value" id="session-max-up"><div class="loading"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Network Adapters</h2>
+            <div class="card">
+                <div id="adapters-container">
+                    <div class="loading" style="margin: 20px auto; display: block;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getStatusClass(value, type) {
+            if (value === 'N/A' || value === 0) return 'good';
+            
+            switch(type) {
+                case 'latency':
+                    if (value <= 50) return 'good';
+                    if (value <= 100) return 'warn';
+                    return 'bad';
+                case 'jitter':
+                    if (value <= 10) return 'good';
+                    if (value <= 30) return 'warn';
+                    return 'bad';
+                case 'mos':
+                    if (value >= 4.0) return 'good';
+                    if (value >= 3.5) return 'warn';
+                    return 'bad';
+                case 'loss':
+                    if (value === 0) return 'good';
+                    if (value < 1.0) return 'warn';
+                    return 'bad';
+                default:
+                    return 'good';
+            }
+        }
+
+        function updateServerInfo() {
+            fetch("/api/server")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("server-location").textContent = data.location;
+                    document.getElementById("server-ip").textContent = data.publicIP;
+                })
+                .catch(error => {
+                    console.error("Error fetching server info:", error);
+                    document.getElementById("server-location").textContent = "Error";
+                    document.getElementById("server-ip").textContent = "Error";
+                });
+        }
+
+        function updateStatus() {
+            fetch("/api/status")
+                .then(response => response.json())
+                .then(data => {
+                    // Update overall status
+                    const overallDot = document.getElementById("overall-dot");
+                    const overallState = document.getElementById("overall-state");
+                    const bondingMode = document.getElementById("bonding-mode");
+                    
+                    overallDot.className = `status-dot ${data.overall.status}`;
+                    overallState.textContent = `${data.overall.state} (${data.overall.status.toUpperCase()})`;
+                    bondingMode.textContent = `Mode: ${data.overall.bondingMode.toUpperCase()}`;
+                    
+                    // Update mode buttons
+                    updateModeButtons(data.overall.bondingMode);
+                    
+                    // Update performance card status
+                    const performanceCard = document.getElementById("performance-card");
+                    performanceCard.className = `card ${data.overall.status}`;
+                    
+                    // Update performance metrics
+                    const perf = data.performance;
+                    
+                    const latencyEl = document.getElementById("perf-latency");
+                    latencyEl.textContent = perf.latency;
+                    latencyEl.className = `perf-value ${getStatusClass(perf.latency, 'latency')}`;
+                    
+                    const jitterEl = document.getElementById("perf-jitter");
+                    jitterEl.textContent = perf.jitter;
+                    jitterEl.className = `perf-value ${getStatusClass(perf.jitter, 'jitter')}`;
+                    
+                    const mosEl = document.getElementById("perf-mos");
+                    mosEl.textContent = perf.mos;
+                    mosEl.className = `perf-value ${getStatusClass(perf.mos, 'mos')}`;
+                    
+                    const lossEl = document.getElementById("perf-loss");
+                    const maxLoss = Math.max(perf.lossSend, perf.lossReceive);
+                    lossEl.textContent = maxLoss.toFixed(2);
+                    lossEl.className = `perf-value ${getStatusClass(maxLoss, 'loss')}`;
+                    
+                    const connectionsEl = document.getElementById("perf-connections");
+                    connectionsEl.textContent = perf.activeConnections;
+                    connectionsEl.className = `perf-value ${perf.activeConnections > 0 ? 'good' : 'bad'}`;
+                    
+                    // Update warning indicators
+                    const warningContainer = document.getElementById("warning-indicators");
+                    warningContainer.innerHTML = '';
+                    
+                    const warnings = [];
+                    if (data.overall.badIndicators.badCpu) warnings.push('High CPU');
+                    if (data.overall.badIndicators.badLatency) warnings.push('High Latency');
+                    if (data.overall.badIndicators.badLoss) warnings.push('Packet Loss');
+                    if (data.overall.badIndicators.badMemory) warnings.push('Memory Issues');
+                    
+                    warnings.forEach(warning => {
+                        const badge = document.createElement('div');
+                        badge.className = 'warning-badge';
+                        badge.textContent = warning;
+                        warningContainer.appendChild(badge);
+                    });
+                    
+                    // Update session statistics
+                    const session = data.session;
+                    document.getElementById("session-uptime").textContent = session.uptime;
+                    document.getElementById("session-received").textContent = session.bytesReceived;
+                    document.getElementById("session-sent").textContent = session.bytesSent;
+                    document.getElementById("session-failovers").textContent = session.failovers;
+                    document.getElementById("session-max-down").textContent = `${session.maxDownloadSpeed} Mbps`;
+                    document.getElementById("session-max-up").textContent = `${session.maxUploadSpeed} Mbps`;
+                    
+                    // Update adapters
+                    const adaptersContainer = document.getElementById("adapters-container");
+                    if (data.adapters && data.adapters.length > 0) {
+                        adaptersContainer.innerHTML = "";
+                        data.adapters.forEach(adapter => {
+                            const adapterCard = document.createElement("div");
+                            adapterCard.className = `adapter-card ${adapter.status}`;
+                            
+                            let connectionStatsHTML = '';
+                            if (adapter.connectionStats) {
+                                const conn = adapter.connectionStats;
+                                connectionStatsHTML = `
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">Latency</span>
+                                        <span class="detail-value" style="color: ${getStatusColor(getStatusClass(conn.latency, 'latency'))}">${conn.latency}ms</span>
+                                    </div>
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">Jitter</span>
+                                        <span class="detail-value">${conn.jitter}ms</span>
+                                    </div>
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">MOS</span>
+                                        <span class="detail-value" style="color: ${getStatusColor(getStatusClass(conn.mos, 'mos'))}">${conn.mos.toFixed(2)}</span>
+                                    </div>
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">Speed</span>
+                                        <span class="detail-value">${formatSpeed(conn.totalBps)}</span>
+                                    </div>
+                                `;
+                            }
+                            
+                            adapterCard.innerHTML = `
+                                <div class="adapter-status ${adapter.status}"></div>
+                                <div class="adapter-header">
+                                    <div class="adapter-name">${adapter.name}</div>
+                                    <div class="adapter-type">${adapter.type}</div>
+                                </div>
+                                <div class="adapter-details">
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">ISP</span>
+                                        <span class="detail-value">${adapter.isp}</span>
+                                    </div>
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">State</span>
+                                        <span class="detail-value">${adapter.state}</span>
+                                    </div>
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">Priority</span>
+                                        <span class="detail-value">${adapter.workingPriority}</span>
+                                    </div>
+                                    <div class="adapter-detail">
+                                        <span class="detail-label">Daily Usage</span>
+                                        <span class="detail-value">${adapter.dataUsage.daily}</span>
+                                    </div>
+                                    ${connectionStatsHTML}
+                                </div>
+                            `;
+                            adaptersContainer.appendChild(adapterCard);
+                        });
+                    } else {
+                        adaptersContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No adapters available</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching status:", error);
+                    // Show error state in UI
+                    document.querySelectorAll('.loading').forEach(el => {
+                        el.style.display = 'none';
+                        if (el.parentElement) {
+                            el.parentElement.innerHTML = '<span style="color: #ff4444;">Error</span>';
+                        }
+                    });
+                });
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'good': return '#00ff88';
+                case 'warn': return '#ffaa00';
+                case 'bad': return '#ff4444';
+                default: return '#fff';
+            }
+        }
+
+        function updateModeButtons(currentMode) {
+            const buttons = ['streaming', 'speed', 'redundant'];
+            buttons.forEach(mode => {
+                const button = document.getElementById(`mode-${mode}`);
+                if (button) {
+                    if (mode === currentMode) {
+                        button.classList.add('active');
+                        button.classList.remove('disabled');
+                    } else {
+                        button.classList.remove('active');
+                        button.classList.remove('disabled');
+                    }
+                }
+            });
+        }
+
+        function changeMode(mode) {
+            const button = document.getElementById(`mode-${mode}`);
+            
+            // Don't change if already active or disabled
+            if (button.classList.contains('active') || button.classList.contains('disabled')) {
+                return;
+            }
+
+            // Set loading state
+            button.classList.add('loading');
+            button.textContent = '';
+
+            fetch('/api/change-mode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ mode: mode })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI immediately to show the change
+                    updateModeButtons(mode);
+                    document.getElementById("bonding-mode").textContent = `Mode: ${mode.toUpperCase()}`;
+                    
+                    // Refresh data after a short delay to get updated status
+                    setTimeout(() => {
+                        updateStatus();
+                    }, 1000);
+                } else {
+                    console.error('Mode change failed:', data.error);
+                    alert('Failed to change mode: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error changing mode:', error);
+                alert('Error changing mode: ' + error.message);
+            })
+            .finally(() => {
+                // Remove loading state and restore text
+                button.classList.remove('loading');
+                button.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            });
+        }
+
+        function formatSpeed(bps) {
+            if (bps === 0) return '0 bps';
+            if (bps >= 1000000) return `${(bps / 1000000).toFixed(1)} Mbps`;
+            if (bps >= 1000) return `${(bps / 1000).toFixed(1)} Kbps`;
+            return `${bps} bps`;
+        }
+
+        // Initial load
+        updateServerInfo();
+        updateStatus();
+        
+        // Auto-refresh every 3 seconds for real-time monitoring
+        setInterval(() => {
+            updateServerInfo();
+            updateStatus();
+        }, 3000);
+    </script>
+</body>
+</html>

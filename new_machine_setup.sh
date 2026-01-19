@@ -22,15 +22,27 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # --- Pre-flight checks ---
-if ! sudo -v; then
-    echo -e "${RED}Error: sudo access required${NC}"
-    exit 1
+# Determine if we need sudo or are already root
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+else
+    if ! command -v sudo &>/dev/null; then
+        echo -e "${RED}Error: Not running as root and sudo is not installed${NC}"
+        echo "Run as root: su -c 'bash <(curl -sL ...)'"
+        echo "Or install sudo: su -c 'apt install sudo && usermod -aG sudo \$USER'"
+        exit 1
+    fi
+    if ! sudo -v; then
+        echo -e "${RED}Error: sudo access required${NC}"
+        exit 1
+    fi
+    SUDO="sudo"
 fi
 
 # --- Step 1: Install system dependencies ---
 echo -e "${YELLOW}[1/7] Installing system dependencies...${NC}"
-sudo apt update
-sudo apt install -y python3 python3-pip network-manager curl git
+$SUDO apt update
+$SUDO apt install -y python3 python3-pip network-manager curl git
 echo -e "${GREEN}OK${NC}"
 
 # --- Step 2: Install Speedify ---
@@ -77,7 +89,7 @@ echo -e "${GREEN}OK${NC}"
 
 # --- Step 5: Install Flask ---
 echo -e "${YELLOW}[5/7] Installing Flask...${NC}"
-sudo apt install -y python3-flask
+$SUDO apt install -y python3-flask
 echo -e "${GREEN}OK${NC}"
 
 # --- Step 6: Configure WiFi Access Point ---
@@ -93,14 +105,14 @@ else
         echo -e "${RED}Password too short, using default${NC}"
         WIFI_PSK="ChangeMeNow123"
     fi
-    sudo nmcli con delete speedify-share 2>/dev/null || true
-    sudo nmcli con add con-name speedify-share \
+    $SUDO nmcli con delete speedify-share 2>/dev/null || true
+    $SUDO nmcli con add con-name speedify-share \
         ifname "$WIFI_IFACE" type wifi ip4 192.168.145.1/24 ssid PokemonWifi
-    sudo nmcli con modify speedify-share \
+    $SUDO nmcli con modify speedify-share \
         802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 6 \
         wifi-sec.key-mgmt wpa-psk wifi-sec.proto rsn wifi-sec.pairwise ccmp \
         wifi-sec.group ccmp wifi-sec.psk "$WIFI_PSK" ipv4.method shared
-    sudo nmcli con up speedify-share
+    $SUDO nmcli con up speedify-share
     echo -e "${GREEN}OK - PokemonWifi active${NC}"
 fi
 
@@ -110,12 +122,12 @@ if ! command -v systemctl &>/dev/null; then
     echo -e "${YELLOW}systemd not found - skipping service install${NC}"
     echo "To start manually: cd $INSTALL_DIR && python3 app.py"
 else
-    sudo cp "$INSTALL_DIR/wifi-dashboard.service" /etc/systemd/system/
-    sudo sed -i "s|/home/wifi|$HOME|g" /etc/systemd/system/wifi-dashboard.service
-    sudo sed -i "s|User=wifi|User=$USER|g" /etc/systemd/system/wifi-dashboard.service
-    sudo systemctl daemon-reload
-    sudo systemctl enable wifi-dashboard.service
-    sudo systemctl start wifi-dashboard.service
+    $SUDO cp "$INSTALL_DIR/wifi-dashboard.service" /etc/systemd/system/
+    $SUDO sed -i "s|/home/wifi|$HOME|g" /etc/systemd/system/wifi-dashboard.service
+    $SUDO sed -i "s|User=wifi|User=$USER|g" /etc/systemd/system/wifi-dashboard.service
+    $SUDO systemctl daemon-reload
+    $SUDO systemctl enable wifi-dashboard.service
+    $SUDO systemctl start wifi-dashboard.service
     echo -e "${GREEN}OK${NC}"
 fi
 
@@ -133,5 +145,5 @@ echo "           http://192.168.145.1:5000 (WiFi)"
 echo ""
 echo "WiFi: PokemonWifi (password set during setup)"
 echo ""
-echo "Update: cd ~/wifi_dashboard && git pull && sudo systemctl restart wifi-dashboard"
+echo "Update: cd ~/wifi_dashboard && git pull && $SUDO systemctl restart wifi-dashboard"
 echo ""

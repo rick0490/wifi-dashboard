@@ -66,6 +66,11 @@ if [ "$SPEEDIFY_STATE" != "CONNECTED" ] && [ "$SPEEDIFY_STATE" != "LOGGED_IN" ];
 else
     echo "Speedify already logged in"
 fi
+# Connect to Speedify server
+if [ "$SPEEDIFY_STATE" != "CONNECTED" ]; then
+    echo "Connecting to Speedify..."
+    /usr/share/speedify/speedify_cli connect
+fi
 echo -e "${GREEN}OK${NC}"
 
 # --- Step 4: Clone dashboard from GitHub ---
